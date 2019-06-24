@@ -56,6 +56,7 @@ struct _GstShout2send {
   guint port;
   gchar *password;
   gchar *username;
+  gchar *authorization_token;
   gchar *streamname;
   gchar *description;
   gchar *genre;

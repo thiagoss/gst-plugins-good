@@ -72,14 +72,17 @@ enum
   ARG_MOUNT,                    /* mountpoint of stream (icecast only) */
   ARG_URL,                      /* the stream's homepage URL */
 
-  ARG_TIMEOUT                   /* The max amount of time to wait for
+  ARG_TIMEOUT,                  /* The max amount of time to wait for
                                    network activity */
+  ARG_AUTHORIZATION_TOKEN       /* opaque authorization token to be sent on
+                                   on HTTP requests */
 };
 
 #define DEFAULT_IP           "127.0.0.1"
 #define DEFAULT_PORT         8000
 #define DEFAULT_PASSWORD     "hackme"
 #define DEFAULT_USERNAME     "source"
+#define DEFAULT_AUTHORIZATION_TOKEN NULL
 #define DEFAULT_PUBLIC     FALSE
 #define DEFAULT_STREAMNAME   ""
 #define DEFAULT_DESCRIPTION  ""
@@ -178,6 +181,12 @@ gst_shout2send_class_init (GstShout2sendClass * klass)
       g_param_spec_string ("username", "username", "username", DEFAULT_USERNAME,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+  g_object_class_install_property (G_OBJECT_CLASS (klass),
+      ARG_AUTHORIZATION_TOKEN,
+      g_param_spec_string ("authorization-token", "authorization token",
+          "authorization token", DEFAULT_AUTHORIZATION_TOKEN,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
   /* metadata */
   g_object_class_install_property (G_OBJECT_CLASS (klass), ARG_PUBLIC,
       g_param_spec_boolean ("public", "public",
@@ -256,6 +265,7 @@ gst_shout2send_init (GstShout2send * shout2send)
   shout2send->port = DEFAULT_PORT;
   shout2send->password = g_strdup (DEFAULT_PASSWORD);
   shout2send->username = g_strdup (DEFAULT_USERNAME);
+  shout2send->authorization_token = g_strdup (DEFAULT_AUTHORIZATION_TOKEN);
   shout2send->streamname = g_strdup (DEFAULT_STREAMNAME);
   shout2send->description = g_strdup (DEFAULT_DESCRIPTION);
   shout2send->genre = g_strdup (DEFAULT_GENRE);
@@ -280,6 +290,7 @@ gst_shout2send_finalize (GstShout2send * shout2send)
   g_free (shout2send->ip);
   g_free (shout2send->password);
   g_free (shout2send->username);
+  g_free (shout2send->authorization_token);
   g_free (shout2send->streamname);
   g_free (shout2send->description);
   g_free (shout2send->genre);
@@ -505,6 +516,15 @@ gst_shout2send_start (GstBaseSink * basesink)
   GST_DEBUG_OBJECT (sink, "setting %s: %s", cur_prop, sink->username);
   if (shout_set_user (sink->conn, sink->username) != SHOUTERR_SUCCESS)
     goto set_failed;
+
+  cur_prop = "authorization-token";
+  GST_DEBUG_OBJECT (sink, "setting %s: %s", cur_prop,
+      sink->authorization_token);
+  if (sink->authorization_token) {
+    if (shout_set_authorization_token (sink->conn,
+            sink->authorization_token) != SHOUTERR_SUCCESS)
+      goto set_failed;
+  }
 
   version_string = gst_version_string ();
   cur_prop = "agent";
@@ -815,6 +835,10 @@ gst_shout2send_set_property (GObject * object, guint prop_id,
       g_free (shout2send->username);
       shout2send->username = g_strdup (g_value_get_string (value));
       break;
+    case ARG_AUTHORIZATION_TOKEN:
+      g_free (shout2send->authorization_token);
+      shout2send->authorization_token = g_strdup (g_value_get_string (value));
+      break;
     case ARG_PUBLIC:
       shout2send->ispublic = g_value_get_boolean (value);
       break;
@@ -867,6 +891,9 @@ gst_shout2send_get_property (GObject * object, guint prop_id,
       break;
     case ARG_PASSWORD:
       g_value_set_string (value, shout2send->password);
+      break;
+    case ARG_AUTHORIZATION_TOKEN:
+      g_value_set_string (value, shout2send->authorization_token);
       break;
     case ARG_USERNAME:
       g_value_set_string (value, shout2send->username);
