@@ -567,7 +567,12 @@ gst_shout2send_connect (GstShout2send * sink)
   GST_DEBUG_OBJECT (sink, "connecting");
 
   start_ts = gst_util_get_timestamp ();
-  ret = shout_open (sink->conn);
+  do {
+    ret = shout_open (sink->conn);
+    if (ret == SHOUTERR_RETRY) {
+      GST_DEBUG_OBJECT (sink, "Got retry error, retrying.");
+    }
+  } while (ret == SHOUTERR_RETRY);
 
   /* wait for connection or timeout */
   while (ret == SHOUTERR_BUSY) {
